@@ -1,0 +1,9 @@
+version: '3.8'
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+    ports:
+      - 5000:5000
+    command: uvicorn app.server:app --host 0.0.0.0 --port 5000 --reload

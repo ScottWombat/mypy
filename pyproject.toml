@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "mypy"
+version = "0.1.0"
+description = ""
+authors = ["ScottWombat <scottwombat@gmail.com>"]
+readme = "README.md"
+packages = [
+    { include="src", from="." },
+]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+pydantic = "^2.3.0"
+fastapi = "^0.103.1"
+celery = "^5.3.4"
+python-dotenv = "^1.0.0"
+click = "^8.1.7"
+uvicorn = "^0.23.2"
+pydantic-settings = "^2.0.3"
+
+[tool.poetry.scripts]
+my-script = "main:main"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
