@@ -1,5 +1,10 @@
 version: '3.8'
 services:
+  redis_broker:
+        image: redis:latest
+        container_name: redis_broker
+        ports:
+          - "6379:6379"
   api:
     build:
       context: .
@@ -7,3 +12,14 @@ services:
     ports:
       - 5000:5000
     command: uvicorn app.server:app --host 0.0.0.0 --port 5000 --reload
+  worker:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+    #command: ['celery', '-A', 'celery_app.worker', 'worker', '-l', 'info']
+    command: "celery -A celery_app.tasks worker -l info -Q test-queue -c 1"
+    environment:
+      - CELERY_BROKER_URL=redis://redis_broker:6379
+      - CELERY_RESULT_BACKEND=redis://redis_broker:6379
+    depends_on:
+      - redis_broker
