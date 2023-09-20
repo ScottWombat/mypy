@@ -7,6 +7,7 @@ from fastapi.middleware import Middleware
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from api.home.home import home_router
+from api.task.task_router import task_router
 from core.config import config
 from core.exceptions import CustomException
 from core.fastapi.dependencies import Logging
@@ -15,6 +16,7 @@ load_dotenv()
 
 def init_routers(app_: FastAPI) -> None:
     app_.include_router(home_router)
+    app_.include_router(task_router)
 
 def make_middleware() -> List[Middleware]:
     middleware = [
