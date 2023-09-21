@@ -1,10 +1,35 @@
 version: '3.8'
 services:
-  redis_broker:
-        image: redis:latest
-        container_name: redis_broker
-        ports:
-          - "6379:6379"
+  rabbitmq-0:
+    image: 'bitnami/rabbitmq:latest'
+    hostname: rabbitmq-0
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+    environment:
+      - RABBITMQ_USERNAME=user
+      - RABBITMQ_PASSWORD=bitnami
+      - RABBITMQ_FORCE_BOOT=true
+    ports:
+      - "4369:4369"
+      - "5672:5672"
+      - "25672:25672"
+      - "15672:15672"
+    volumes:
+      - 'rabbitmq-0:/bitnami/rabbitmq/mnesia'
+    networks:
+      - app-tier
+  redis-0:
+    image: bitnami/redis:latest
+    hostname: redis-0
+    ports:
+      - "6379:6379"
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    networks:
+      - app-tier
   api:
     build:
       context: .
@@ -13,6 +38,8 @@ services:
     ports:
       - 5000:5000
     command: uvicorn app.server:app --host 0.0.0.0 --port 5000 --reload
+    networks:
+      - app-tier
   worker-0:
     build:
       context: .
@@ -20,10 +47,13 @@ services:
     container_name: worker-0
     command: "celery -A celery_app.tasks worker -l info -Q add-queue -c 1 -E"
     environment:
-      - CELERY_BROKER_URL=redis://redis_broker:6379
-      - CELERY_RESULT_BACKEND=redis://redis_broker:6379
+      - CELERY_BROKER_URL=amqp://user:bitnami@rabbitmq-0:5672
+      - CELERY_RESULT_BACKEND=redis://redis-0:6379
     depends_on:
-      - redis_broker
+      - redis-0
+      - rabbitmq-0
+    networks:
+      - app-tier
   worker-1:
     build:
       context: .
@@ -31,8 +61,48 @@ services:
     container_name: worker-1
     command: "celery -A celery_app.tasks worker -l info -Q greeting-queue -c 1 -E"
     environment:
-      - CELERY_BROKER_URL=redis://redis_broker:6379
-      - CELERY_RESULT_BACKEND=redis://redis_broker:6379
+      - CELERY_BROKER_URL=amqp://user:bitnami@rabbitmq-0:5672
+      - CELERY_RESULT_BACKEND=redis://redis-0:6379
     depends_on:
-      - redis_broker
- 
+      - redis-0
+      - rabbitmq-0
+    networks:
+      - app-tier
+  flower-0:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+    container_name: flower-0
+    command: celery -A celery_app.tasks flower
+    environment:
+      - CELERY_BROKER_URL=amqp://user:bitnami@rabbitmq-0:5672
+      - CELERY_RESULT_BACKEND=redis://redis-0:6379
+    ports:
+      - 5555:5555
+    depends_on:
+      - redis-0
+      - rabbitmq-0
+      - worker-0
+      - worker-1
+      - api
+    networks:
+      - app-tier
+    expose:
+      - 5555
+  nginx:
+    image: nginx:latest
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./htpasswd:/etc/nginx/.htpasswd
+    ports:
+      - 8089:80
+    depends_on:
+      - flower-0
+    networks:
+      - app-tier
+volumes:
+  rabbitmq-0:
+  redis_0:
+networks:
+  app-tier:
+    driver: bridge

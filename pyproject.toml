@@ -18,9 +18,11 @@ click = "^8.1.7"
 uvicorn = "^0.23.2"
 pydantic-settings = "^2.0.3"
 redis = "^5.0.0"
+flower = "^2.0.1"
 
 [tool.poetry.scripts]
 my-script = "main:main"
+send-mail="utils.send_mail:send_mail"
 
 
 [build-system]
